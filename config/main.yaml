@@ -1,0 +1,5 @@
+cache:
+  ttl: 3600s
+
+auth:
+  accessTokenTTL: 120m
