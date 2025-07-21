@@ -69,7 +69,7 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("error loading .env file: %w", err)
 	}
 
-	cfg, err := LoadYaml("configs/main.yml")
+	cfg, err := LoadYaml("config/main.yaml")
 	if err != nil {
 		return nil, fmt.Errorf("error loading main.yml file: %w", err)
 	}
