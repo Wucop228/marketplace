@@ -25,22 +25,6 @@ func NewAuthHandler(db *sql.DB, authConfig *config.AuthConfig) *AuthHandler {
 	}
 }
 
-func GenerateAccessToken(h *AuthHandler, c echo.Context, user models.User) (string, error) {
-	accessExp := time.Now().Add(h.AuthConfig.AccessTokenTTL).Unix()
-	accessClaims := jwt.MapClaims{
-		"sub": user.ID,
-		"exp": accessExp,
-	}
-
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
-	accessTokenSigned, err := accessToken.SignedString([]byte(h.AuthConfig.JWTSecret))
-	if err != nil {
-		return "", c.JSON(http.StatusInternalServerError, echo.Map{"error": "error while generating access token"})
-	}
-
-	return accessTokenSigned, nil
-}
-
 func CheckPasswordAndUsername(username string, password string) echo.Map {
 	if len(username) < 3 || len(username) > 20 {
 		return echo.Map{"error": "username must be 3-20 characters"}
@@ -59,6 +43,22 @@ func CheckPasswordAndUsername(username string, password string) echo.Map {
 	return nil
 }
 
+func GenerateAccessToken(h *AuthHandler, c echo.Context, user models.User) (string, error) {
+	accessExp := time.Now().Add(h.AuthConfig.AccessTokenTTL).Unix()
+	accessClaims := jwt.MapClaims{
+		"sub": user.ID,
+		"exp": accessExp,
+	}
+
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
+	accessTokenSigned, err := accessToken.SignedString([]byte(h.AuthConfig.JWTSecret))
+	if err != nil {
+		return "", c.JSON(http.StatusInternalServerError, echo.Map{"error": "error while generating access token"})
+	}
+
+	return accessTokenSigned, nil
+}
+
 func (h *AuthHandler) Register(c echo.Context) error {
 	var req struct {
 		Username string
@@ -72,6 +72,14 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, err)
 	}
 
+	ex, err := repo.UserExists(h.db, req.Username)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "checking user failed"})
+	}
+	if ex {
+		return c.JSON(http.StatusConflict, echo.Map{"error": "username already exists"})
+	}
+
 	hashPassword, err := hash.HashPassword(req.Password)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "password hashing failed"})
@@ -82,9 +90,6 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		Username:     req.Username,
 		PasswordHash: string(hashPassword),
 	}
-	if err := repo.CreateUser(h.db, &user); err != nil || user.ID == -1 {
-		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "user creation failed"})
-	}
 
 	exists, err := repo.UserExists(h.db, user.Username)
 	if err != nil {
@@ -92,6 +97,10 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	}
 	if exists {
 		return c.JSON(http.StatusConflict, echo.Map{"error": "username already exists"})
+	}
+
+	if err := repo.CreateUser(h.db, &user); err != nil || user.ID == -1 {
+		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "user creation failed"})
 	}
 
 	return c.JSON(http.StatusCreated, echo.Map{

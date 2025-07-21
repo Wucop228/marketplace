@@ -3,6 +3,7 @@ package repo
 import (
 	"database/sql"
 	"github.com/Wucop228/marketplace/internal/models"
+	_ "github.com/lib/pq"
 )
 
 func UserExists(db *sql.DB, username string) (bool, error) {
@@ -12,7 +13,7 @@ func UserExists(db *sql.DB, username string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if count == 0 {
+	if count != 0 {
 		return true, nil
 	}
 
@@ -20,8 +21,8 @@ func UserExists(db *sql.DB, username string) (bool, error) {
 }
 
 func CreateUser(db *sql.DB, user *models.User) error {
-	query := "INSERT INTO users (id, username, role, password_hash) VALUES (DEFAULT, $1, $2)"
-	_, err := db.Exec(query, user.Username, user.PasswordHash)
+	query := "INSERT INTO users (id, username, role, password_hash) VALUES (DEFAULT, $1, $2, $3)"
+	_, err := db.Exec(query, user.Username, "user", user.PasswordHash)
 	if err != nil {
 		return err
 	}
