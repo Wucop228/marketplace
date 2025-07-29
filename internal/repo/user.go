@@ -39,3 +39,10 @@ func LoginUser(db *sql.DB, username string) (models.User, error) {
 	err := db.QueryRow(query, username).Scan(&user.ID, &user.Username, &user.Role, &user.PasswordHash)
 	return user, err
 }
+
+func GetUserById(db *sql.DB, id int64) (string, error) {
+	query := "SELECT username FROM users WHERE id=$1"
+	var username string
+	err := db.QueryRow(query, id).Scan(&username)
+	return username, err
+}
